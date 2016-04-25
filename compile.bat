@@ -1,1 +1,1 @@
-gcc SDL_win32_main.c main.c -lopengl32 -lSDL -lSDL_image -DNO_STDIO_REDIRECT
+gcc SDL_win32_main.c main.c -lopengl32 -lSDL -lSDL_image -lSDL_mixer -DNO_STDIO_REDIRECT -o jpgv_player
