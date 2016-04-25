@@ -1,5 +1,6 @@
 #include "SDL/SDL.h"
 #include "SDL/SDL_image.h"
+#include "SDL/SDL_mixer.h"
 #include "SDL/SDL_opengl.h"
 #include <stdio.h>
 #include <sys/time.h>
@@ -30,6 +31,7 @@ GLint nofcolors;
 SDL_AudioSpec device;
 uint32_t audio_len;
 uint8_t* audio_pos;
+Mix_Music* mix_chunk = NULL;
 
 // Drawing function using openGL to rotate the frame
 void drawFrame(){
@@ -129,25 +131,26 @@ int main(int argc, char* argv[]){
 	SDL_WM_SetCaption("Minimalist JPGV Player", NULL);
 	char* audiobuffer;
 	
-	// Writing Video Info on Screen
-	printf("Header Info:\n");
-	printf("Framerate: %lu\n", info.framerate);
-	printf("Audiotype: %s\n", (info.audiotype>1) ? "Stereo" : "Mono");
-	printf("Bytepersample: %u\n", info.bytepersample);
-	printf("Samplerate: %u\n", info.samplerate);
-	printf("Audiocodec: %s\n", info.audiocodec ? "Vorbis" : "PCM16");
-	printf("Total Frames Number: %lu\n", info.tot_frame);
-	printf("Audiobuffer Size: %lu\n", info.audiobuf_size);
-	
 	if (info.audiocodec){
-		printf("WARNING: Vorbis audiocodec not currently supported.\n");
 		
-		// Skipping audio buffer
-		fseek(jpgv, info.audiobuf_size, SEEK_CUR);
+		// Allocating audiobuffer (TODO: A proper streaming function)
+		audiobuffer = (char*)malloc(info.audiobuf_size);
+		fread(audiobuffer, 1, info.audiobuf_size, jpgv);
+		SDL_RWops* rw_audio = SDL_RWFromMem(audiobuffer,info.audiobuf_size);
+		
+		// Extracting missing video values from OGG container
+		memcpy(&info.audiotype,&audiobuffer[39],1);
+		memcpy(&info.samplerate,&audiobuffer[40],2);
+		info.bytepersample = info.audiotype<<1;
+		
+		// Setting SDL audio device parameters
+		Mix_OpenAudio(info.samplerate,AUDIO_S16LSB,info.audiotype,640);
+		mix_chunk = Mix_LoadMUS_RW(rw_audio);
+		if (mix_chunk == NULL) printf("ERROR: An error occurred while opening audio sector.\n%s\n",Mix_GetError());
 		
 	}else{
 	
-		// Allocating audiobuffer
+		// Allocating audiobuffer (TODO: A proper streaming function)
 		audio_len = info.audiobuf_size;
 		audiobuffer = (char*)malloc(info.audiobuf_size);
 		fread(audiobuffer, 1, info.audiobuf_size, jpgv);
@@ -160,8 +163,19 @@ int main(int argc, char* argv[]){
 		device.callback = wav_callback;
 		device.userdata = audiobuffer;
 		audio_pos = audiobuffer;
-		if (SDL_OpenAudio(&device, NULL) < 0) printf("ERROR: Couldn't open audio: %s\n", SDL_GetError());
+		if (SDL_OpenAudio(&device, NULL) < 0) printf("ERROR: An error occurred while opening audio sector.\n%s\n", SDL_GetError());
+	
 	}
+	
+	// Writing Video Info on Screen
+	printf("Video Info:\n");
+	printf("Framerate: %lu\n", info.framerate);
+	printf("Audiotype: %s\n", (info.audiotype>1) ? "Stereo" : "Mono");
+	printf("Bytepersample: %u\n", info.bytepersample);
+	printf("Samplerate: %u\n", info.samplerate);
+	printf("Audiocodec: %s\n", info.audiocodec ? "Vorbis" : "PCM16");
+	printf("Total Frames Number: %lu\n", info.tot_frame);
+	//printf("Audiobuffer Size: %lu\n", info.audiobuf_size); DEBUG
 	
 	// Parsing video buffer offsets table
 	vidbuf_offs = (uint64_t*)malloc(info.tot_frame<<3);
@@ -193,7 +207,8 @@ int main(int argc, char* argv[]){
 	glTexImage2D( GL_TEXTURE_2D, 0, nofcolors, frame->w, frame->h, 0, texture_format, GL_UNSIGNED_BYTE, frame->pixels );
 	
 	// Starting audio playback
-	SDL_PauseAudio(0);
+	if (mix_chunk == NULL) SDL_PauseAudio(0);
+	else Mix_PlayMusic(mix_chunk,0); 
 	
 	// Starting timer
 	gettimeofday(&tick1, NULL);

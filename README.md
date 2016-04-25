@@ -6,6 +6,7 @@ You can find more info about JPGV format and also a converter based on ffmpeg [h
 To compile the source you'll need these libraries:
 * SDL 1.2
 * SDL_Image 1.2
+* SDL_Mixer 1.2
 
 If you are on Windows and you use MinGW as toolchain, you can just launch *compile.bat* to compile the program.<br>
 
