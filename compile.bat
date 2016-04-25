@@ -1,0 +1,1 @@
+gcc SDL_win32_main.c main.c -lopengl32 -lSDL -lSDL_image -DNO_STDIO_REDIRECT
