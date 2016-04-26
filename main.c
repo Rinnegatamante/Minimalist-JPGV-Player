@@ -146,7 +146,7 @@ int main(int argc, char* argv[]){
 		// Setting SDL audio device parameters
 		Mix_OpenAudio(info.samplerate,AUDIO_S16LSB,info.audiotype,640);
 		mix_chunk = Mix_LoadMUS_RW(rw_audio);
-		if (mix_chunk == NULL) printf("ERROR: An error occurred while opening audio sector.\n%s\n",Mix_GetError());
+		if (mix_chunk == NULL) printf("ERROR: Failed opening audio sector.\n%s\n",Mix_GetError());
 		
 	}else{
 	
@@ -163,7 +163,7 @@ int main(int argc, char* argv[]){
 		device.callback = wav_callback;
 		device.userdata = audiobuffer;
 		audio_pos = audiobuffer;
-		if (SDL_OpenAudio(&device, NULL) < 0) printf("ERROR: An error occurred while opening audio sector.\n%s\n", SDL_GetError());
+		if (SDL_OpenAudio(&device, NULL) < 0) printf("ERROR: Failed opening audio sector.\n%s\n", SDL_GetError());
 	
 	}
 	
@@ -190,6 +190,7 @@ int main(int argc, char* argv[]){
 	fread(buffer, 1, jpg_size, jpgv);
 	SDL_RWops* rw = SDL_RWFromMem(buffer,jpg_size);
 	frame = IMG_Load_RW(rw, 1);
+	if (frame == NULL) printf("ERROR: Failed opening video sector.\n%s\n", SDL_GetError());
 	
 	// Generating 2D Texture for openGL
 	nofcolors=frame->format->BytesPerPixel;
@@ -212,6 +213,7 @@ int main(int argc, char* argv[]){
 	
 	// Starting timer
 	gettimeofday(&tick1, NULL);
+	int paused = 0;
 	
 	// Main loop
 	while(!quit){
@@ -219,8 +221,18 @@ int main(int argc, char* argv[]){
 			if( event.type == SDL_QUIT ) {
 				quit = 1;
 			} 
+			if( event.type == SDL_MOUSEBUTTONDOWN ){
+				if( event.button.button == SDL_BUTTON_LEFT ){
+					paused = !paused;
+					gettimeofday(&tick2, NULL);
+					tick1.tv_sec = tick2.tv_sec - tick1.tv_sec;
+					tick1.tv_usec = tick2.tv_usec - tick1.tv_usec;
+					if (mix_chunk == NULL) SDL_PauseAudio(paused);
+					else paused ? Mix_PauseMusic() : Mix_ResumeMusic();
+				}
+			}
 		}
-		updateFrame();
+		if (!paused) updateFrame();
 		drawFrame();
 	}
 	
